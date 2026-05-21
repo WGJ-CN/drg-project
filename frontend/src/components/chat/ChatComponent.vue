@@ -77,6 +77,23 @@
             <div class="message-time">
               {{ formatTime(message.timestamp) }}
             </div>
+            
+            <!-- Confirmation Buttons -->
+            <div v-if="message.type === 'bot' && message.needConfirm && !message.confirmed" class="confirmation-buttons">
+              <button @click="handleConfirm(message.id, message.sessionId)" class="confirm-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                <span>确认</span>
+              </button>
+              <button @click="handleModify(message.id, message.sessionId)" class="modify-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 20h9"/>
+                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                </svg>
+                <span>修改</span>
+              </button>
+            </div>
           </div>
         </div>
         
@@ -95,7 +112,8 @@
           v-model="inputText"
           placeholder="请输入诊断信息，例如：主诊断：S01.800x011 其他诊断：S21.100x002 年龄：35岁"
           @keydown.ctrl.enter="handleSend"
-          :disabled="chatStore.isLoading"
+          :disabled="chatStore.isLoading || chatStore.awaitingConfirmation"
+          :placeholder="chatStore.awaitingConfirmation ? '请先确认或修改信息' : '请输入诊断信息，例如：主诊断：S01.800x011 其他诊断：S21.100x002 年龄：35岁'"
           rows="3"
           class="message-input"
         ></textarea>
@@ -151,6 +169,11 @@ function formatTime(timestamp) {
 }
 
 async function handleSend() {
+  // 如果正在等待确认，则禁止发送
+  if (chatStore.awaitingConfirmation) {
+    return
+  }
+  
   if (!inputText.value.trim() || chatStore.isLoading) return
 
   const message = inputText.value.trim()
@@ -164,15 +187,51 @@ async function handleSend() {
     sessionId.value = response.session_id
     chatStore.removeLastMessage()
     // 添加机器人回复
-    chatStore.addBotMessage(response.reply)
-    // 如果有分组结果，也添加结果卡片（注意要匹配之前的展示格式）
+    chatStore.addBotMessage(response.reply, response.need_confirm, response.session_id)
+    // 如果有分组结果，也添加结果卡片
     if (response.result) {
-      // 我们将结果作为特殊对象展示，之前的 bot 内容渲染支持对象
       chatStore.addBotMessage(response.result)
     }
   } catch (error) {
     chatStore.removeLastMessage()
     chatStore.addBotMessage('抱歉，对话失败，请稍后重试。')
+  }
+}
+
+async function handleConfirm(messageId, sessionIdValue) {
+  // 立即隐藏按钮
+  chatStore.confirmMessage(messageId)
+  
+  chatStore.addLoadingMessage()
+
+  try {
+    const response = await chatDRG('__CONFIRM__', sessionIdValue)
+    sessionId.value = response.session_id
+    chatStore.removeLastMessage()
+    chatStore.addBotMessage(response.reply)
+    if (response.result) {
+      chatStore.addBotMessage(response.result)
+    }
+  } catch (error) {
+    chatStore.removeLastMessage()
+    chatStore.addBotMessage('抱歉，分组失败，请稍后重试。')
+  }
+}
+
+async function handleModify(messageId, sessionIdValue) {
+  // 立即隐藏按钮
+  chatStore.confirmMessage(messageId)
+  
+  chatStore.addLoadingMessage()
+
+  try {
+    const response = await chatDRG('__MODIFY__', sessionIdValue)
+    sessionId.value = response.session_id
+    chatStore.removeLastMessage()
+    chatStore.addBotMessage(response.reply)
+  } catch (error) {
+    chatStore.removeLastMessage()
+    chatStore.addBotMessage('抱歉，操作失败，请稍后重试。')
   }
 }
 </script>
@@ -448,7 +507,9 @@ async function handleSend() {
 
 .text-content {
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  word-break: break-all;
 }
 
 .message.user .text-content {
@@ -542,5 +603,62 @@ async function handleSend() {
 .send-button svg {
   width: 16px;
   height: 16px;
+}
+
+.confirmation-buttons {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  justify-content: flex-end;
+}
+
+.confirm-btn,
+.modify-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.confirm-btn {
+  background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(96, 165, 250, 0.3);
+}
+
+.confirm-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(96, 165, 250, 0.4);
+}
+
+.confirm-btn:active {
+  transform: translateY(0);
+}
+
+.confirm-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.modify-btn {
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+}
+
+.modify-btn:hover {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.modify-btn svg {
+  width: 14px;
+  height: 14px;
 }
 </style>

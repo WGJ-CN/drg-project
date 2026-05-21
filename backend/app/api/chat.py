@@ -18,6 +18,7 @@ class ChatResponse(BaseModel):
     reply: str
     result: Optional[Dict[str, Any]] = None
     session_id: str
+    need_confirm: bool = False  # 新增：是否需要确认
 
 
 @router.post("/chat", response_model=ChatResponse)
@@ -29,7 +30,7 @@ async def chat(request: ChatRequest):
 
     # 如果正在等待确认
     if session.status == "AWAITING_CONFIRMATION":
-        if user_message in ("确认", "是", "yes", "ok"):
+        if user_message == "__CONFIRM__" or user_message in ("确认", "是", "yes", "ok"):
             # 执行分组
             try:
                 result = drg_service.group_from_structured(
@@ -45,6 +46,13 @@ async def chat(request: ChatRequest):
                 return ChatResponse(reply=reply, result=result, session_id=session_id)
             except Exception as e:
                 return ChatResponse(reply=f"分组失败: {str(e)}", session_id=session_id)
+        elif user_message == "__MODIFY__":
+            # 用户点击修改按钮
+            session.status = "COLLECTING"
+            return ChatResponse(
+                reply="好的，请输入需要修改的信息。",
+                session_id=session_id
+            )
         else:
             # 用户未确认，可能想修改信息，回到收集状态
             session.status = "COLLECTING"
@@ -87,7 +95,8 @@ async def chat(request: ChatRequest):
         # 所有必填字段已填，展示确认信息
         summary = f"主要诊断：{session.main_diag}\n次要诊断：{', '.join(session.other_diags) if session.other_diags else '无'}\n主要手术：{session.main_proc if session.main_proc else '无'}\n其他手术：{', '.join(session.other_procs) if session.other_procs else '无'}\n年龄：{session.age_days} 天"
         session.status = "AWAITING_CONFIRMATION"
-        reply = f"请确认以下信息是否正确：\n{summary}\n\n回复“确认”开始分组，回复其他内容修改信息。"
+        reply = f"请确认以下信息是否正确：\n{summary}"
+        return ChatResponse(reply=reply, session_id=session_id, need_confirm=True)
     else:
         # 还有缺项，提示缺什么
         missing = []
