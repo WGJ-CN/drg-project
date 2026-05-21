@@ -110,7 +110,6 @@
       <div class="input-wrapper">
         <textarea
           v-model="inputText"
-          placeholder="请输入诊断信息，例如：主诊断：S01.800x011 其他诊断：S21.100x002 年龄：35岁"
           @keydown.ctrl.enter="handleSend"
           :disabled="chatStore.isLoading || chatStore.awaitingConfirmation"
           :placeholder="chatStore.awaitingConfirmation ? '请先确认或修改信息' : '请输入诊断信息，例如：主诊断：S01.800x011 其他诊断：S21.100x002 年龄：35岁'"
@@ -118,6 +117,28 @@
           class="message-input"
         ></textarea>
         <div class="input-actions">
+          <div class="clear-dropdown">
+            <button 
+              @click="toggleClearMenu" 
+              class="clear-button"
+              :disabled="!sessionId || chatStore.awaitingConfirmation"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              </svg>
+              <span>清除</span>
+            </button>
+            <div v-if="showClearMenu" class="clear-menu">
+              <div class="clear-menu-item" @click="handleClear(['main_diag'])">清除主要诊断</div>
+              <div class="clear-menu-item" @click="handleClear(['other_diags'])">清除次要诊断</div>
+              <div class="clear-menu-item" @click="handleClear(['main_proc'])">清除主要手术</div>
+              <div class="clear-menu-item" @click="handleClear(['other_procs'])">清除其他手术</div>
+              <div class="clear-menu-item" @click="handleClear(['age_days'])">清除年龄</div>
+              <div class="clear-menu-divider"></div>
+              <div class="clear-menu-item clear-all" @click="handleClear(null)">全部清除</div>
+            </div>
+          </div>
           <span class="shortcut-hint">Ctrl + Enter 发送</span>
           <button
             @click="handleSend"
@@ -137,15 +158,15 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick } from 'vue'
+import { ref, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useChatStore } from '../../stores/chat'
-import { groupDRG } from '../../services/drg'
-import { chatDRG } from '../../services/drg'
+import { chatDRG, clearDRG } from '../../services/drg'
 
 const sessionId = ref(null)
 const chatStore = useChatStore()
 const inputText = ref('')
 const messagesContainer = ref(null)
+const showClearMenu = ref(false)
 
 watch(() => chatStore.messages.length, async () => {
   await nextTick()
@@ -166,6 +187,29 @@ function getComplicationText(code) {
 function formatTime(timestamp) {
   const date = new Date(timestamp)
   return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+}
+
+function toggleClearMenu() {
+  showClearMenu.value = !showClearMenu.value
+}
+
+function closeClearMenu() {
+  showClearMenu.value = false
+}
+
+async function handleClear(fields) {
+  if (!sessionId.value) return
+  
+  closeClearMenu()
+  
+  try {
+    const response = await clearDRG(sessionId.value, fields)
+    // 判断是否需要确认（清除部分字段且满足分组条件）
+    const needConfirm = response.is_complete && fields  // 清除部分字段且满足条件才需要确认
+    chatStore.addBotMessage(response.reply, needConfirm, response.session_id)
+  } catch (error) {
+    chatStore.addBotMessage('清除失败，请稍后重试。')
+  }
 }
 
 async function handleSend() {
@@ -234,6 +278,21 @@ async function handleModify(messageId, sessionIdValue) {
     chatStore.addBotMessage('抱歉，操作失败，请稍后重试。')
   }
 }
+
+// 点击外部关闭菜单
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
+
+function handleClickOutside(event) {
+  if (showClearMenu.value && !event.target.closest('.clear-dropdown')) {
+    closeClearMenu()
+  }
+}
 </script>
 
 <style scoped>
@@ -268,10 +327,6 @@ async function handleModify(messageId, sessionIdValue) {
   flex-direction: row;
 }
 
-.message.loading {
-  flex-direction: row;
-}
-
 .avatar {
   width: 40px;
   height: 40px;
@@ -280,7 +335,6 @@ async function handleModify(messageId, sessionIdValue) {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .bot-avatar {
@@ -299,52 +353,31 @@ async function handleModify(messageId, sessionIdValue) {
 }
 
 .message-content-wrapper {
-  max-width: 75%;
-  display: flex;
-  flex-direction: column;
+  max-width: 70%;
 }
 
 .message.user .message-content-wrapper {
+  display: flex;
+  flex-direction: column;
   align-items: flex-end;
 }
 
 .message-content {
-  padding: 16px 20px;
-  border-radius: 20px;
-  word-wrap: break-word;
+  padding: 14px 18px;
+  border-radius: 18px;
   position: relative;
-  transition: all 0.3s ease;
+}
+
+.message.bot .message-content {
+  background: #fff;
+  border-bottom-left-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .message.user .message-content {
   background: linear-gradient(135deg, #1890ff 0%, #096dd9 100%);
   color: #fff;
-  border-radius: 20px 20px 20px 4px;
-  box-shadow: 0 4px 16px rgba(24, 144, 255, 0.3);
-}
-
-.message.bot .message-content {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 20px 20px 20px 4px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-}
-
-.message.loading .message-content {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 20px 20px 20px 4px;
-}
-
-.message-time {
-  font-size: 11px;
-  color: #94a3b8;
-  margin-top: 6px;
-  padding: 0 8px;
-}
-
-.message.user .message-time {
-  color: rgba(255, 255, 255, 0.6);
+  border-bottom-right-radius: 4px;
 }
 
 .loading-spinner {
@@ -400,14 +433,14 @@ async function handleModify(messageId, sessionIdValue) {
 }
 
 .result-icon svg {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
 }
 
 .result-title {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-  color: #1e293b;
+  color: #1f2937;
 }
 
 .result-grid {
@@ -430,13 +463,13 @@ async function handleModify(messageId, sessionIdValue) {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-.card-label {
+.result-card .card-label {
   font-size: 12px;
   color: #64748b;
   margin-bottom: 6px;
 }
 
-.card-value {
+.result-card .card-value {
   font-size: 20px;
   font-weight: 700;
   color: #1e293b;
@@ -562,6 +595,82 @@ async function handleModify(messageId, sessionIdValue) {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  position: relative;
+}
+
+.clear-dropdown {
+  position: relative;
+}
+
+.clear-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.clear-button:hover:not(:disabled) {
+  background: #e2e8f0;
+  color: #475569;
+}
+
+.clear-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.clear-button svg {
+  width: 14px;
+  height: 14px;
+}
+
+.clear-menu {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  margin-bottom: 8px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+  min-width: 160px;
+  z-index: 100;
+  overflow: hidden;
+}
+
+.clear-menu-item {
+  padding: 12px 16px;
+  font-size: 13px;
+  color: #334155;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.clear-menu-item:hover {
+  background: #f1f5f9;
+}
+
+.clear-menu-divider {
+  height: 1px;
+  background: #e2e8f0;
+  margin: 4px 0;
+}
+
+.clear-all {
+  color: #dc2626;
+  font-weight: 500;
+}
+
+.clear-all:hover {
+  background: #fef2f2;
 }
 
 .shortcut-hint {
@@ -660,5 +769,16 @@ async function handleModify(messageId, sessionIdValue) {
 .modify-btn svg {
   width: 14px;
   height: 14px;
+}
+
+.message-time {
+  font-size: 12px;
+  color: #999;
+  margin-top: 8px;
+  text-align: right;
+}
+
+.message.user .message-time {
+  color: rgba(255, 255, 255, 0.6);
 }
 </style>

@@ -94,6 +94,9 @@ def map_extracted_to_slots(extracted: dict) -> dict:
     将 LLM 提取结果映射为槽位，尽可能转换名称到编码。
     返回：{ main_diag, other_diags, main_proc, other_procs, age_days, conflicts }
     conflicts 是冲突列表，如 [{"type":"diagnosis","name":"xxx","options":["code1","code2"]}]
+    
+    注意：只有当用户明确提供信息时才设置字段，未提到的字段不包含在返回结果中。
+    空列表 [] 表示用户明确想清空该字段。
     """
     slots = {}
     conflicts = []
@@ -101,71 +104,78 @@ def map_extracted_to_slots(extracted: dict) -> dict:
     # 处理主诊断
     main_diag_code = extracted.get("main_diag_code")
     main_diag_name = extracted.get("main_diag_name")
-    if main_diag_code:
-        slots["main_diag"] = main_diag_code
-    elif main_diag_name:
-        code = resolve_code(main_diag_name, "diagnosis")
-        if code:
-            slots["main_diag"] = code
-        else:
-            if main_diag_name in NAME2CODE:
-                conflicts.append({"type": "diagnosis", "name": main_diag_name, "options": NAME2CODE[main_diag_name]})
+    # 只有当用户明确提供了主诊断信息时才设置
+    if main_diag_code or main_diag_name:
+        if main_diag_code:
+            slots["main_diag"] = main_diag_code
+        elif main_diag_name:
+            code = resolve_code(main_diag_name, "diagnosis")
+            if code:
+                slots["main_diag"] = code
             else:
-                # 名称无匹配，当成编码尝试？或者询问
-                conflicts.append({"type": "diagnosis", "name": main_diag_name, "options": []})
-
-    # 处理其他诊断
-    other_diags = []
-    for item in extracted.get("other_diag_list", []):
-        code = item.get("code")
-        name = item.get("name")
-        if code:
-            other_diags.append(code)
-        elif name:
-            res = resolve_code(name, "diagnosis")
-            if res:
-                other_diags.append(res)
-            else:
-                if name in NAME2CODE:
-                    conflicts.append({"type": "other_diagnosis", "name": name, "options": NAME2CODE[name]})
+                if main_diag_name in NAME2CODE:
+                    conflicts.append({"type": "diagnosis", "name": main_diag_name, "options": NAME2CODE[main_diag_name]})
                 else:
-                    conflicts.append({"type": "other_diagnosis", "name": name, "options": []})
-    slots["other_diags"] = other_diags
+                    conflicts.append({"type": "diagnosis", "name": main_diag_name, "options": []})
 
-    # 处理主手术
+    # 处理其他诊断 - 只有当用户明确提供了内容时才设置
+    other_diag_list = extracted.get("other_diag_list")
+    if other_diag_list and len(other_diag_list) > 0:
+        other_diags = []
+        for item in other_diag_list:
+            code = item.get("code")
+            name = item.get("name")
+            if code:
+                other_diags.append(code)
+            elif name:
+                res = resolve_code(name, "diagnosis")
+                if res:
+                    other_diags.append(res)
+                else:
+                    if name in NAME2CODE:
+                        conflicts.append({"type": "other_diagnosis", "name": name, "options": NAME2CODE[name]})
+                    else:
+                        conflicts.append({"type": "other_diagnosis", "name": name, "options": []})
+        slots["other_diags"] = other_diags
+
+    # 处理主手术 - 只有当用户明确提供了信息时才设置
     main_proc_code = extracted.get("main_proc_code")
     main_proc_name = extracted.get("main_proc_name")
-    if main_proc_code:
-        slots["main_proc"] = main_proc_code
-    elif main_proc_name:
-        code = resolve_code(main_proc_name, "procedure")
-        if code:
-            slots["main_proc"] = code
-        else:
-            if main_proc_name in NAME2CODE:
-                conflicts.append(
-                    {"type": "main_procedure", "name": main_proc_name, "options": NAME2CODE[main_proc_name]})
+    if main_proc_code or main_proc_name:
+        if main_proc_code:
+            slots["main_proc"] = main_proc_code
+        elif main_proc_name:
+            code = resolve_code(main_proc_name, "procedure")
+            if code:
+                slots["main_proc"] = code
             else:
-                conflicts.append({"type": "main_procedure", "name": main_proc_name, "options": []})
-
-    # 处理其他手术
-    other_procs = []
-    for item in extracted.get("other_proc_list", []):
-        code = item.get("code")
-        name = item.get("name")
-        if code:
-            other_procs.append(code)
-        elif name:
-            res = resolve_code(name, "procedure")
-            if res:
-                other_procs.append(res)
-            else:
-                if name in NAME2CODE:
-                    conflicts.append({"type": "other_procedure", "name": name, "options": NAME2CODE[name]})
+                if main_proc_name in NAME2CODE:
+                    conflicts.append(
+                        {"type": "main_procedure", "name": main_proc_name, "options": NAME2CODE[main_proc_name]})
                 else:
-                    conflicts.append({"type": "other_procedure", "name": name, "options": []})
-    slots["other_procs"] = other_procs
+                    conflicts.append({"type": "main_procedure", "name": main_proc_name, "options": []})
 
+    # 处理其他手术 - 只有当用户明确提供了内容时才设置
+    other_proc_list = extracted.get("other_proc_list")
+    if other_proc_list and len(other_proc_list) > 0:
+        other_procs = []
+        for item in extracted.get("other_proc_list", []):
+            code = item.get("code")
+            name = item.get("name")
+            if code:
+                other_procs.append(code)
+            elif name:
+                res = resolve_code(name, "procedure")
+                if res:
+                    other_procs.append(res)
+                else:
+                    if name in NAME2CODE:
+                        conflicts.append({"type": "other_procedure", "name": name, "options": NAME2CODE[name]})
+                    else:
+                        conflicts.append({"type": "other_procedure", "name": name, "options": []})
+        slots["other_procs"] = other_procs
+
+    # 处理年龄 - 只有当用户明确提供了信息时才设置
     age = extracted.get("age_days")
     if age is not None:
         try:

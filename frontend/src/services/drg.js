@@ -32,4 +32,20 @@ export async function chatDRG(message, sessionId = null) {
     throw error
   }
 }
+
+export async function clearDRG(sessionId, fields = null) {
+  try {
+    const response = await api.post('/clear', {
+      session_id: sessionId,
+      fields: fields
+    }, {
+      headers: { 'Content-Type': 'application/json' }
+    })
+    return response.data
+  } catch (error) {
+    console.error('清除请求失败:', error)
+    throw error
+  }
+}
+
 export default api
