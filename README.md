@@ -10,9 +10,12 @@ drg-project/
 │   ├── src/         # 源代码
 │   │   ├── components/  # Vue 组件
 │   │   ├── views/       # 页面视图
+│   │   ├── layouts/     # 布局组件
 │   │   ├── router/      # 路由配置
 │   │   ├── stores/      # Pinia 状态管理
-│   │   └── services/    # API 服务
+│   │   ├── services/    # API 服务
+│   │   ├── utils/       # 工具函数
+│   │   └── assets/      # 静态资源
 │   ├── public/      # 静态资源
 │   └── package.json # 前端依赖配置
 ├── backend/         # FastAPI 后端服务
@@ -26,7 +29,8 @@ drg-project/
 └── engine/          # DRG 分组引擎
     ├── ruzu.py      # 核心分组逻辑
     ├── GET_*.py     # PDF 解析工具
-    └── *.json       # 分组规则数据
+    ├── *.json       # 分组规则数据
+    └── test/        # 测试数据
 ```
 
 ## 技术栈
@@ -50,6 +54,10 @@ drg-project/
 ## 功能特性
 
 - DRG 疾病诊断相关分组
+- 聊天式交互界面
+- 确认/修改按钮操作
+- 清除数据功能
+- 会话状态管理
 - RESTful API 接口
 - CORS 跨域支持
 - 实时分组服务
@@ -59,7 +67,9 @@ drg-project/
 ## API 端点
 
 - `GET /` - 服务状态检查
-- `POST /api/group` - DRG 分组接口
+- `POST /api/group/raw` - 原始文本分组接口
+- `POST /api/chat` - 聊天/分组接口
+- `POST /api/clear` - 清除会话数据接口
 
 ## 使用说明
 
@@ -112,6 +122,8 @@ npm run dev
   - fastapi==0.104.1
   - uvicorn==0.24.0
   - python-multipart==0.0.6
+  - requests>=2.31.0（用于调用 DeepSeek API）
+  - python-dotenv>=1.0.0（用于加载环境变量）
 
 ### 引擎
 - 使用 Python 标准库（json, re, typing）
