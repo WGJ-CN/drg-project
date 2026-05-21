@@ -41,11 +41,17 @@ async def chat(request: ChatRequest):
                     age_days=session.age_days
                 )
                 session.status = "DONE"
+                
+                # 检查STATUS是否为SUCCESS
+                if result.get("STATUS") != "SUCCESS":
+                    reply = "分组失败，请确认数据输入是否正确"
+                    return ChatResponse(reply=reply, session_id=session_id)
+                
                 # 构造结果回复
                 reply = f"分组完成！\nMDC: {result['MDC']}\nADRG: {result['ADRG']} {result.get('ADRG_NAME', '')}\nDRG: {result['DRG']} {result.get('DRG_NAME', '')}\n并发症等级: {result['COMPLICATION']}"
                 return ChatResponse(reply=reply, result=result, session_id=session_id)
             except Exception as e:
-                return ChatResponse(reply=f"分组失败: {str(e)}", session_id=session_id)
+                return ChatResponse(reply=f"分组失败，请确认数据输入是否正确", session_id=session_id)
         elif user_message == "__MODIFY__":
             # 用户点击修改按钮
             session.status = "COLLECTING"
