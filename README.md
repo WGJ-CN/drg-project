@@ -24,6 +24,7 @@ drg-project/
 │   │   ├── models/  # 数据模型
 │   │   ├── services/ # 业务逻辑
 │   │   └── utils/   # 工具函数
+│   ├── .env.example # 环境变量模板
 │   ├── run.py       # 启动脚本
 │   └── test.py      # 测试文件
 └── engine/          # DRG 分组引擎
@@ -80,6 +81,14 @@ cd backend
 pip install -r requirements.txt
 ```
 
+### 配置环境变量
+
+```bash
+cd backend
+cp .env.example .env
+# 编辑 .env 填入你的 API Key
+```
+
 ### 启动后端服务
 
 ```bash
@@ -124,6 +133,7 @@ npm run dev
   - python-multipart==0.0.6
   - requests>=2.31.0（用于调用 DeepSeek API）
   - python-dotenv>=1.0.0（用于加载环境变量）
+- 环境变量：复制 `.env.example` 为 `.env` 并填入 `DEEPSEEK_API_KEY`
 
 ### 引擎
 - 使用 Python 标准库（json, re, typing）
