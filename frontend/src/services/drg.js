@@ -18,4 +18,18 @@ export async function groupDRG(data) {
   }
 }
 
+export async function chatDRG(message, sessionId = null) {
+  try {
+    const response = await api.post('/chat', {
+      message: message,
+      session_id: sessionId
+    }, {
+      headers: { 'Content-Type': 'application/json' }
+    })
+    return response.data
+  } catch (error) {
+    console.error('对话请求失败:', error)
+    throw error
+  }
+}
 export default api

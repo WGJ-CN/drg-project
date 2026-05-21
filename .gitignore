@@ -84,6 +84,3 @@ dmypy.json
 备份/
 *.bak
 *.backup
-
-# PDF files (optional, can be large)
-# *.pdf

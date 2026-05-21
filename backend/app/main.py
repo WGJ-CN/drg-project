@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import group
+from app.api import group,chat
+
+
 
 app = FastAPI(
     title="DRG 分组服务",
@@ -19,7 +21,7 @@ app.add_middleware(
 
 # 注册路由
 app.include_router(group.router, prefix="/api", tags=["分组"])
-
+app.include_router(chat.router, prefix="/api", tags=["对话"])
 @app.get("/")
 async def root():
     return {"message": "DRG 分组服务已启动", "status": "running"}

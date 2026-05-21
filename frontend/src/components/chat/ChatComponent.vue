@@ -122,7 +122,9 @@
 import { ref, watch, nextTick } from 'vue'
 import { useChatStore } from '../../stores/chat'
 import { groupDRG } from '../../services/drg'
+import { chatDRG } from '../../services/drg'
 
+const sessionId = ref(null)
 const chatStore = useChatStore()
 const inputText = ref('')
 const messagesContainer = ref(null)
@@ -158,12 +160,19 @@ async function handleSend() {
   chatStore.addLoadingMessage()
 
   try {
-    const result = await groupDRG(message)
+    const response = await chatDRG(message, sessionId.value)
+    sessionId.value = response.session_id
     chatStore.removeLastMessage()
-    chatStore.addBotMessage(result)
+    // 添加机器人回复
+    chatStore.addBotMessage(response.reply)
+    // 如果有分组结果，也添加结果卡片（注意要匹配之前的展示格式）
+    if (response.result) {
+      // 我们将结果作为特殊对象展示，之前的 bot 内容渲染支持对象
+      chatStore.addBotMessage(response.result)
+    }
   } catch (error) {
     chatStore.removeLastMessage()
-    chatStore.addBotMessage('抱歉，分组失败，请稍后重试。')
+    chatStore.addBotMessage('抱歉，对话失败，请稍后重试。')
   }
 }
 </script>
