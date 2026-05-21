@@ -5,6 +5,7 @@ export const useChatStore = defineStore('chat', () => {
   const messages = ref([])
   const isLoading = ref(false)
   const awaitingConfirmation = ref(false)  // 是否正在等待确认
+  const clearButtonDisabled = ref(false)  // 清除按钮是否禁用
 
   function addUserMessage(content) {
     messages.value.push({
@@ -27,6 +28,18 @@ export const useChatStore = defineStore('chat', () => {
     })
     // 更新等待确认状态
     awaitingConfirmation.value = needConfirm
+    // 如果消息包含"已清除所有数据"，禁用清除按钮
+    if (typeof content === 'string' && content.includes('已清除所有数据')) {
+      clearButtonDisabled.value = true
+    }
+  }
+
+  function enableClearButton() {
+    clearButtonDisabled.value = false
+  }
+
+  function disableClearButton() {
+    clearButtonDisabled.value = true
   }
 
   function addLoadingMessage() {
@@ -60,11 +73,14 @@ export const useChatStore = defineStore('chat', () => {
     messages,
     isLoading,
     awaitingConfirmation,
+    clearButtonDisabled,
     addUserMessage,
     addBotMessage,
     addLoadingMessage,
     removeLastMessage,
     clearMessages,
-    confirmMessage
+    confirmMessage,
+    enableClearButton,
+    disableClearButton
   }
 })

@@ -121,7 +121,7 @@
             <button 
               @click="toggleClearMenu" 
               class="clear-button"
-              :disabled="!sessionId || chatStore.awaitingConfirmation"
+              :disabled="!sessionId || chatStore.awaitingConfirmation || chatStore.clearButtonDisabled"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="3 6 5 6 21 6"/>
@@ -207,6 +207,10 @@ async function handleClear(fields) {
     // 判断是否需要确认（清除部分字段且满足分组条件）
     const needConfirm = response.is_complete && fields  // 清除部分字段且满足条件才需要确认
     chatStore.addBotMessage(response.reply, needConfirm, response.session_id)
+    // 如果是全部清除，禁用清除按钮
+    if (!fields) {
+      chatStore.disableClearButton()
+    }
   } catch (error) {
     chatStore.addBotMessage('清除失败，请稍后重试。')
   }
@@ -236,6 +240,8 @@ async function handleSend() {
     if (response.result) {
       chatStore.addBotMessage(response.result)
     }
+    // 用户输入后启用清除按钮
+    chatStore.enableClearButton()
   } catch (error) {
     chatStore.removeLastMessage()
     chatStore.addBotMessage('抱歉，对话失败，请稍后重试。')

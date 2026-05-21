@@ -57,14 +57,18 @@ async def chat(request: ChatRequest):
 
                 # 检查STATUS是否为SUCCESS
                 if result.get("STATUS") != "SUCCESS":
-                    reply = "分组失败，请确认数据输入是否正确"
+                    session.clear_slots()
+                    session.status = "COLLECTING"
+                    reply = "分组失败，已清除所有数据，请确认数据是否正确，并重新输入"
                     return ChatResponse(reply=reply, session_id=session_id)
 
                 # 构造结果回复
                 reply = f"分组完成！\nMDC: {result['MDC']}\nADRG: {result['ADRG']} {result.get('ADRG_NAME', '')}\nDRG: {result['DRG']} {result.get('DRG_NAME', '')}\n并发症等级: {result['COMPLICATION']}"
                 return ChatResponse(reply=reply, result=result, session_id=session_id)
             except Exception as e:
-                return ChatResponse(reply=f"分组失败，请确认数据输入是否正确", session_id=session_id)
+                session.clear_slots()
+                session.status = "COLLECTING"
+                return ChatResponse(reply="分组失败，已清除所有数据，请确认数据是否正确，并重新输入", session_id=session_id)
         elif user_message == "__MODIFY__":
             # 用户点击修改按钮
             session.status = "COLLECTING"
