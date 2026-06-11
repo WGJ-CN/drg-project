@@ -21,7 +21,8 @@ def main():
         "adrg_rules.json",
         "mcc_table.json",
         "cc_table.json",
-        "exclusion_table.json"
+        "exclusion_table.json",
+        "non_grouping_list.json"
     ]
     pairs = set()
     for file in files:
