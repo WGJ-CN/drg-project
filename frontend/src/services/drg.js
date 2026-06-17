@@ -8,16 +8,6 @@ const api = axios.create({
   }
 })
 
-export async function groupDRG(data) {
-  try {
-    const response = await api.post('/group/raw', data)
-    return response.data
-  } catch (error) {
-    console.error('DRG分组请求失败:', error)
-    throw error
-  }
-}
-
 export async function chatDRG(message, sessionId = null) {
   try {
     const response = await api.post('/chat', {

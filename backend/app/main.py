@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api import group,chat
+from app.api import chat
 
 
 
@@ -20,7 +20,6 @@ app.add_middleware(
 )
 
 # 注册路由
-app.include_router(group.router, prefix="/api", tags=["分组"])
 app.include_router(chat.router, prefix="/api", tags=["对话"])
 @app.get("/")
 async def root():
